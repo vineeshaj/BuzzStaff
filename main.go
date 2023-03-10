@@ -28,9 +28,25 @@ func main() {
 	http.HandleFunc("/getDashboard", func(w http.ResponseWriter, r *http.Request) {
 		d.GetDashboard(w, r, db)
 	})
-	//---------------------Endpoint to filter the dashboard data for QAF------------------------
-	http.HandleFunc("/filterdashboard", func(w http.ResponseWriter, r *http.Request) {
+	//---------------------Endpoint to filter the dashboard data(Date Range) for QAF------------------------
+	http.HandleFunc("/filterDate", func(w http.ResponseWriter, r *http.Request) {
+		d.FilterDate(w, r, db)
+	})
+	//---------------------Endpoint to filter the dashboard data (Employee Id) for QAF------------------------
+	http.HandleFunc("/filterEmpId", func(w http.ResponseWriter, r *http.Request) {
+		d.FilterEmpId(w, r, db)
+	})
+	//-------------------------Multifilter for dashboard----------------------------
+	http.HandleFunc("/filterDashboard", func(w http.ResponseWriter, r *http.Request) {
 		d.FilterDashboard(w, r, db)
+	})
+	//---------------------Endpoint to filter the dashboard data for QAF------------------------
+	http.HandleFunc("/editQualityAssessmentForm", func(w http.ResponseWriter, r *http.Request) {
+		d.EditQualityAssessmentForm(w, r, db)
+	})
+	//---------------------List Quality Assessment Form-----------------------------------------
+	http.HandleFunc("/listQualityAssessmentForm", func(w http.ResponseWriter, r *http.Request) {
+		d.ListQualityAssessmentForm(w, r, db)
 	})
 
 	log.Fatal(http.ListenAndServe(":8000", nil))
