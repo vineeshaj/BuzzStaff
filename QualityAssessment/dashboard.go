@@ -3,14 +3,16 @@ package QualityAssessment
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 // Define a struct to hold data from the table
 type QualityAssessmentForm struct {
 	Id                                                               int    `json:"Id"`
-	Emp_id                                                           string `json:"Emp_id"`
+	Emp_id                                                           int    `json:"Emp_id"`
 	Email                                                            string `json:"Email"`
 	Entry_date                                                       string `json:"Entry_date"`
 	Program_assessment                                               int    `json:"Program_assessment"`
@@ -74,7 +76,7 @@ type QualityAssessmentForm struct {
 
 var DB *sql.DB
 
-// ------------------------------------Adding Data into Quality Assessment Form-------------------------------------------------------------
+// ------------------------------------Adding Data into Quality Assessment Form----------------------------------------------------------------------
 func AddQualityAssessmentForm(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 	// Decode request body into QualityAssessmentForm struct
 	var q QualityAssessmentForm
@@ -224,7 +226,7 @@ func AddQualityAssessmentForm(w http.ResponseWriter, r *http.Request, DB *sql.DB
 	w.Write([]byte("Data inserted successfully"))
 }
 
-// -------------------------------------Total Dashboard for Quality Assessment Form-------------------------------------------------------
+// -------------------------------------Total Dashboard for Quality Assessment Form------------------------------------------------------------------
 type DashboardData struct {
 	SStraining     int `json:"SStraining"`
 	GelathiProgram int `json:"GelathiProgram"`
@@ -260,7 +262,7 @@ func GetDashboard(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 	w.Write(ww)
 }
 
-// --------------------------------------Filter Dashboard(Date Range) for Quality Assessment Form---------------------------------------------------
+// ----------------------------------------Filter Dashboard(Date Range) for Quality Assessment Form--------------------------------------------------
 type Filter struct {
 	Start_Date string `json:"Start_Date"`
 	End_Date   string `json:"End_Date"`
@@ -306,7 +308,7 @@ func FilterDate(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 	w.Write(ww)
 }
 
-// --------------------------------------Filter Dashboard(Employee Id) for Quality Assessment Form---------------------------------------------------
+// ----------------------------------------Filter Dashboard(Employee Id) for Quality Assessment Form--------------------------------------------------
 func FilterEmpId(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 	var qua QualityAssessmentForm
 
@@ -316,7 +318,7 @@ func FilterEmpId(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 		return
 	}
 
-	if qua.Emp_id == "" {
+	if qua.Emp_id == 0 {
 		json.NewEncoder(w).Encode(map[string]interface{}{"status": "400 Bad Request", "Message": "Emp_id is required"})
 		return
 	}
@@ -351,7 +353,7 @@ func FilterEmpId(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 	w.Write(ww)
 }
 
-// ----------------------------------------------------------Multi Filter for dashboard-----------------------------------------------------------
+// ----------------------------------------Multi Filter for dashboard---------------------------------------------------------------------------------
 func FilterDashboard(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 	var filter struct {
 		Emp_id    string `json:"Emp_id"`
@@ -393,7 +395,7 @@ func FilterDashboard(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 	w.Write(ww)
 }
 
-// ----------------------------------------Edit Dashboard for Quality Assessment Form----------------------------------------------------
+// ----------------------------------------Edit Dashboard for Quality Assessment Form-----------------------------------------------------------------
 func EditQualityAssessmentForm(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 	// Decode request body into QualityAssessmentForm struct
 	var q QualityAssessmentForm
@@ -542,7 +544,7 @@ func EditQualityAssessmentForm(w http.ResponseWriter, r *http.Request, DB *sql.D
 	w.Write([]byte("Data Updated Successfully"))
 }
 
-// ----------------------------------------List Quality Assessment Form-----------------------------------------------------
+// ----------------------------------------List Quality Assessment Form-------------------------------------------------------------------------------
 func ListQualityAssessmentForm(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 	var q QualityAssessmentForm
 	err := json.NewDecoder(r.Body).Decode(&q)
@@ -640,4 +642,213 @@ func ListQualityAssessmentForm(w http.ResponseWriter, r *http.Request, DB *sql.D
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonData)
+}
+
+// -----------------------------------------Get Logged in User Data-----------------------------------------------------------------------------------
+type Employee struct {
+	ID      int    `json:"id"`
+	EmpRole string `json:"empRole"`
+}
+
+func GetUserData(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
+	userID, err := strconv.Atoi(r.Header.Get("user_id"))
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+	var emp Employee
+	err = DB.QueryRow("SELECT id, empRole FROM employee WHERE id = ?", userID).Scan(&emp.ID, &emp.EmpRole)
+	if err != nil {
+		http.Error(w, "User does not exist", http.StatusInternalServerError)
+		return
+	}
+
+	// Serialize the employee data as JSON and return it in the response body
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `{"id":%d,"empRole":"%s"}`, emp.ID, emp.EmpRole)
+}
+
+// -----------------------------------------List of employees under the supervisor Id-----------------------------------------------------------------
+type Emp struct {
+	ID           int    `json:"id"`
+	Name         string `json:"name"`
+	EmpRole      int    `json:"empRole"`
+	SupervisorID int    `json:"supervisorId"`
+}
+
+func GetEmpData(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var data struct {
+		ID int `json:"id"`
+	}
+	err := decoder.Decode(&data)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Invalid request body")
+		return
+	}
+
+	// Find the supervisor employee with the given ID
+	var supervisor Emp
+	err = DB.QueryRow("SELECT id, CONCAT(first_name, ' ', last_name), empRole, supervisorId FROM employee WHERE id = ? AND empRole IN (1, 2, 3, 4, 12, 13)", data.ID).Scan(&supervisor.ID, &supervisor.Name, &supervisor.EmpRole, &supervisor.SupervisorID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, "Supervisor not found")
+			return
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Internal server error")
+			log.Println(err)
+			return
+		}
+	}
+
+	// Find all employees under the supervisor
+	rows, err := DB.Query("SELECT id, CONCAT(first_name, ' ', last_name), empRole, supervisorId FROM employee WHERE supervisorId = ? AND empRole IN (1, 2, 3, 4, 12, 13)", supervisor.ID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Internal server error")
+		log.Println(err)
+		return
+	}
+	defer rows.Close()
+
+	var subordinates []Emp
+	for rows.Next() {
+		var subordinate Emp
+		err := rows.Scan(&subordinate.ID, &subordinate.Name, &subordinate.EmpRole, &subordinate.SupervisorID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Internal server error")
+			log.Println(err)
+			return
+		}
+		subordinates = append(subordinates, subordinate)
+	}
+
+	// Find subordinates' subordinates recursively
+	for i := 0; i < len(subordinates); i++ {
+		subordinate := subordinates[i]
+		rows, err := DB.Query("SELECT id, CONCAT(first_name, ' ', last_name), empRole, supervisorId FROM employee WHERE supervisorId = ? AND empRole IN (1, 2, 3, 4, 12, 13)", subordinate.ID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Internal server error")
+			log.Println(err)
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var subSubordinate Emp
+			err := rows.Scan(&subSubordinate.ID, &subSubordinate.Name, &subSubordinate.EmpRole, &subSubordinate.SupervisorID)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "Internal server error")
+				log.Println(err)
+				return
+			}
+			subordinates = append(subordinates, subSubordinate)
+		}
+	}
+
+	// Write response with all employee data
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(subordinates)
+}
+
+// -----------------------------------------Filter Dashboard(Taluk) for Quality Assessment Form-------------------------------------------------------
+func FilterTaluk(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
+	var qua QualityAssessmentForm
+
+	err := json.NewDecoder(r.Body).Decode(&qua)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "400 Bad Request", "Message": "Invalid request body"})
+		return
+	}
+
+	if qua.Name_of_the_taluk == "" {
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "400 Bad Request", "Message": "Name_of_the_taluk is required"})
+		return
+	}
+
+	rows, err := DB.Query(`SELECT 
+		(SELECT COUNT(*) FROM QualityAssessmentForm WHERE Program_assessment=1 AND Name_of_the_taluk=?) as SStraining,
+		(SELECT COUNT(*) FROM QualityAssessmentForm WHERE Program_assessment=2 AND Name_of_the_taluk=?) as GelathiProgram,
+		(SELECT COUNT(*) FROM QualityAssessmentForm WHERE Program_assessment=3 AND Name_of_the_taluk=?) as SSbyGelathi`, qua.Name_of_the_taluk, qua.Name_of_the_taluk, qua.Name_of_the_taluk)
+	if err != nil {
+		log.Fatal(err)
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "400 Bad Request", "Message": err})
+		return
+	}
+	defer rows.Close()
+
+	var SStraining, GelathiProgram, SSbyGelathi int
+	for rows.Next() {
+		err := rows.Scan(&SStraining, &GelathiProgram, &SSbyGelathi)
+		if err != nil {
+			log.Fatal(err)
+			json.NewEncoder(w).Encode(map[string]interface{}{"status": "400 Bad Request", "Message": err})
+			return
+		}
+	}
+	dashboard := DashboardData{SStraining, GelathiProgram, SSbyGelathi}
+	ww, err := json.Marshal(dashboard)
+	if err != nil {
+		log.Fatal(err)
+		json.NewEncoder(w).Encode(map[string]interface{}{"Status": "400 Bad Request", "Message": err})
+		return
+	}
+	w.Write(ww)
+}
+
+// -----------------------------------------Filter Dashboard(District) for Quality Assessment Form----------------------------------------------------
+func FilterDistrict(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
+	var qua QualityAssessmentForm
+
+	err := json.NewDecoder(r.Body).Decode(&qua)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "400 Bad Request", "Message": "Invalid request body"})
+		return
+	}
+
+	if qua.Name_of_the_district == "" {
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "400 Bad Request", "Message": "Name_of_the_district is required"})
+		return
+	}
+
+	rows, err := DB.Query(`SELECT 
+		(SELECT COUNT(*) FROM QualityAssessmentForm WHERE Program_assessment=1 AND Name_of_the_district=?) as SStraining,
+		(SELECT COUNT(*) FROM QualityAssessmentForm WHERE Program_assessment=2 AND Name_of_the_district=?) as GelathiProgram,
+		(SELECT COUNT(*) FROM QualityAssessmentForm WHERE Program_assessment=3 AND Name_of_the_district=?) as SSbyGelathi`, qua.Name_of_the_district, qua.Name_of_the_district, qua.Name_of_the_district)
+	if err != nil {
+		log.Fatal(err)
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "400 Bad Request", "Message": err})
+		return
+	}
+	defer rows.Close()
+
+	var SStraining, GelathiProgram, SSbyGelathi int
+	for rows.Next() {
+		err := rows.Scan(&SStraining, &GelathiProgram, &SSbyGelathi)
+		if err != nil {
+			log.Fatal(err)
+			json.NewEncoder(w).Encode(map[string]interface{}{"status": "400 Bad Request", "Message": err})
+			return
+		}
+	}
+	dashboard := DashboardData{SStraining, GelathiProgram, SSbyGelathi}
+	ww, err := json.Marshal(dashboard)
+	if err != nil {
+		log.Fatal(err)
+		json.NewEncoder(w).Encode(map[string]interface{}{"Status": "400 Bad Request", "Message": err})
+		return
+	}
+	w.Write(ww)
 }

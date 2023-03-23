@@ -48,6 +48,22 @@ func main() {
 	http.HandleFunc("/listQualityAssessmentForm", func(w http.ResponseWriter, r *http.Request) {
 		d.ListQualityAssessmentForm(w, r, db)
 	})
+	//---------------------List Quality Assessment Form-----------------------------------------
+	http.HandleFunc("/getUserData", func(w http.ResponseWriter, r *http.Request) {
+		d.GetUserData(w, r, db)
+	})
+	//---------------------List Quality Assessment Form-----------------------------------------
+	http.HandleFunc("/getEmpData", func(w http.ResponseWriter, r *http.Request) {
+		d.GetEmpData(w, r, db)
+	})
+	//---------------------Endpoint to filter the dashboard data(Taluk) for QAF-----------------------------------------
+	http.HandleFunc("/filterTaluk", func(w http.ResponseWriter, r *http.Request) {
+		d.FilterTaluk(w, r, db)
+	})
+	//---------------------Endpoint to filter the dashboard data(District) for QAF-----------------------------------------
+	http.HandleFunc("/filterDistrict", func(w http.ResponseWriter, r *http.Request) {
+		d.FilterDistrict(w, r, db)
+	})
 
 	log.Fatal(http.ListenAndServe(":8000", nil))
 }
