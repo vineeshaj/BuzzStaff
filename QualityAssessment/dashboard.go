@@ -78,11 +78,18 @@ var DB *sql.DB
 
 // ------------------------------------Adding Data into Quality Assessment Form----------------------------------------------------------------------
 func AddQualityAssessmentForm(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"Status": "404 Not Found", "Error": "Method not found"})
+		return
+	}
 	// Decode request body into QualityAssessmentForm struct
 	var q QualityAssessmentForm
 	err := json.NewDecoder(r.Body).Decode(&q)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"Status": "400 Bad Request", "Message": err.Error()})
 		return
 	}
 
@@ -150,7 +157,8 @@ func AddQualityAssessmentForm(w http.ResponseWriter, r *http.Request, DB *sql.DB
 		During_the_debrief_did_the_gelathi_not_ask
 	) VALUES (?,?,LOCALTIMESTAMP(0),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Fatal(err)
+		json.NewEncoder(w).Encode(map[string]interface{}{"Status": "400 Bad Request", "Message": err})
 		return
 	}
 	defer stmt.Close()
@@ -217,13 +225,14 @@ func AddQualityAssessmentForm(w http.ResponseWriter, r *http.Request, DB *sql.DB
 		q.The_gelathi_did_not_ask,
 		q.During_the_debrief_did_the_gelathi_not_ask)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Fatal(err)
+		json.NewEncoder(w).Encode(map[string]interface{}{"Status": "400 Bad Request", "Message": err})
 		return
 	}
 
 	// Return success message
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Data inserted successfully"))
+	json.NewEncoder(w).Encode(map[string]string{"Status Code": "200", "Message": "Data inserted successfully"})
 }
 
 // -------------------------------------Total Dashboard for Quality Assessment Form------------------------------------------------------------------
@@ -234,6 +243,11 @@ type DashboardData struct {
 }
 
 func GetDashboard(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
+	if r.Method != "GET" {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"Status": "404 Not Found", "Error": "Method not found"})
+		return
+	}
 	rows, err := DB.Query(`SELECT 
         (SELECT COUNT(*) FROM QualityAssessmentForm WHERE Program_assessment=1) as SStraining,
         (SELECT COUNT(*) FROM QualityAssessmentForm WHERE Program_assessment=2) as GelathiProgram,
@@ -269,11 +283,17 @@ type Filter struct {
 }
 
 func FilterDate(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"Status": "404 Not Found", "Error": "Method not found"})
+		return
+	}
 	var filter Filter
 	err := json.NewDecoder(r.Body).Decode(&filter)
 	if err != nil {
-		log.Fatal(err)
-		json.NewEncoder(w).Encode(map[string]interface{}{"Status": "400 Bad Request", "Message": err})
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"Status": "400 Bad Request", "Message": err.Error()})
 		return
 	}
 
@@ -310,11 +330,18 @@ func FilterDate(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 
 // ----------------------------------------Filter Dashboard(Employee Id) for Quality Assessment Form--------------------------------------------------
 func FilterEmpId(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"Status": "404 Not Found", "Error": "Method not found"})
+		return
+	}
 	var qua QualityAssessmentForm
 
 	err := json.NewDecoder(r.Body).Decode(&qua)
 	if err != nil {
-		json.NewEncoder(w).Encode(map[string]interface{}{"status": "400 Bad Request", "Message": "Invalid request body"})
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"Status": "400 Bad Request", "Message": err.Error()})
 		return
 	}
 
@@ -355,6 +382,11 @@ func FilterEmpId(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 
 // ----------------------------------------Multi Filter for dashboard---------------------------------------------------------------------------------
 func FilterDashboard(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"Status": "404 Not Found", "Error": "Method not found"})
+		return
+	}
 	var filter struct {
 		Emp_id    string `json:"Emp_id"`
 		From_Date string `json:"From_Date"`
@@ -362,7 +394,9 @@ func FilterDashboard(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 	}
 	err := json.NewDecoder(r.Body).Decode(&filter)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"Status": "400 Bad Request", "Message": err.Error()})
 		return
 	}
 	defer r.Body.Close()
@@ -397,11 +431,18 @@ func FilterDashboard(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 
 // ----------------------------------------Edit Dashboard for Quality Assessment Form-----------------------------------------------------------------
 func EditQualityAssessmentForm(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"Status": "404 Not Found", "Error": "Method not found"})
+		return
+	}
 	// Decode request body into QualityAssessmentForm struct
 	var q QualityAssessmentForm
 	err := json.NewDecoder(r.Body).Decode(&q)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"Status": "400 Bad Request", "Message": err.Error()})
 		return
 	}
 
@@ -546,10 +587,17 @@ func EditQualityAssessmentForm(w http.ResponseWriter, r *http.Request, DB *sql.D
 
 // ----------------------------------------List Quality Assessment Form-------------------------------------------------------------------------------
 func ListQualityAssessmentForm(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"Status": "404 Not Found", "Error": "Method not found"})
+		return
+	}
 	var q QualityAssessmentForm
 	err := json.NewDecoder(r.Body).Decode(&q)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"Status": "400 Bad Request", "Message": err.Error()})
 		return
 	}
 
@@ -651,6 +699,11 @@ type Employee struct {
 }
 
 func GetUserData(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
+	if r.Method != "GET" {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"Status": "404 Not Found", "Error": "Method not found"})
+		return
+	}
 	userID, err := strconv.Atoi(r.Header.Get("user_id"))
 	if err != nil {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
@@ -679,7 +732,8 @@ type Emp struct {
 
 func GetEmpData(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 	if r.Method != "POST" {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"Status": "404 Not Found", "Error": "Method not found"})
 		return
 	}
 
@@ -689,8 +743,9 @@ func GetEmpData(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 	}
 	err := decoder.Decode(&data)
 	if err != nil {
+		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Invalid request body")
+		json.NewEncoder(w).Encode(map[string]interface{}{"Status": "400 Bad Request", "Message": err.Error()})
 		return
 	}
 
@@ -765,11 +820,17 @@ func GetEmpData(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 
 // -----------------------------------------Filter Dashboard(Taluk) for Quality Assessment Form-------------------------------------------------------
 func FilterTaluk(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"Status": "404 Not Found", "Error": "Method not found"})
+		return
+	}
 	var qua QualityAssessmentForm
-
 	err := json.NewDecoder(r.Body).Decode(&qua)
 	if err != nil {
-		json.NewEncoder(w).Encode(map[string]interface{}{"status": "400 Bad Request", "Message": "Invalid request body"})
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"Status": "400 Bad Request", "Message": err.Error()})
 		return
 	}
 
@@ -810,11 +871,17 @@ func FilterTaluk(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
 
 // -----------------------------------------Filter Dashboard(District) for Quality Assessment Form----------------------------------------------------
 func FilterDistrict(w http.ResponseWriter, r *http.Request, DB *sql.DB) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"Status": "404 Not Found", "Error": "Method not found"})
+		return
+	}
 	var qua QualityAssessmentForm
-
 	err := json.NewDecoder(r.Body).Decode(&qua)
 	if err != nil {
-		json.NewEncoder(w).Encode(map[string]interface{}{"status": "400 Bad Request", "Message": "Invalid request body"})
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"Status": "400 Bad Request", "Message": err.Error()})
 		return
 	}
 
